@@ -7,44 +7,83 @@ import (
 
 //
 //
-func New(name, desc string, v interface{}) map[string]interface{} {
-	rp, ap := Properties(v)
-	return map[string]interface{}{
-		"$schema":              "http://json-schema.org/schema#",
-		"name":                 name,
-		"type":                 "object",
-		"description":          desc,
-		"additionalProperties": false,
+type JsonSchema struct {
+	Schema   string    `json:"$schema"`
+	Name     string    `json:"name,omitempty"`
+	Type     string    `json:"type,omitempty"`
+	Desc     string    `json:"description,omitempty"`
+	AddProp  bool      `json:"additionalProperties,omitempty"`
+	ReqProps *[]string `json:"required,omitempty"`
 
-		"required":   rp,
-		"properties": ap,
+	Props *map[string]interface{} `json:"properties,omitempty"`
+}
+
+//
+//
+func New(name, desc string, v interface{}) JsonSchema {
+	rp, p := props(v)
+	return JsonSchema{
+		Schema:   "http://json-schema.org/schema#",
+		Name:     name,
+		Type:     "object",
+		Desc:     desc,
+		ReqProps: rp,
+		Props:    p,
 	}
 }
 
 //
 //
-func Properties(v interface{}) ([]string, map[string]interface{}) {
+func props(v interface{}) (*[]string, *map[string]interface{}) {
 	pm := map[string]interface{}{}
-	rp := []string{}
+	pr := &[]string{}
 
-	for _, field := range Fields("json", v) {
+	for _, field := range fields("json", v) {
 		js, ft := field.Tag.Get("json"), field.Type
-		nm, ps := ParseTagValue(js)
+		if js == "" || js == "-" {
+			continue
+		}
+		nm, ps := parsetag(js)
 		pm[nm] = ps
-		if v, n := FieldKindTypeMap[ft.Kind()], ps["type"]; v != "" && n == "" {
+		if v, n := types[ft.Kind()], ps["type"]; v != "" && n == "" {
 			ps["type"] = v
 		}
 	}
-	return rp, pm
+	if len(*pr) == 0 {
+		pr = nil
+	}
+	ppm := &pm
+	if len(pm) == 0 {
+		ppm = nil
+	}
+	return pr, ppm
 }
 
-func ParseTagValue(v string) (string, map[string]string) {
+//
+//
+func fields(name string, src interface{}) []reflect.StructField {
+	fs := []reflect.StructField{}
+	st := reflect.TypeOf(src)
+	for i := 0; i < st.NumField(); i++ {
+		if n := st.Field(i).Tag.Get(name); n != "" {
+			fs = append(fs, st.Field(i))
+		}
+	}
+	return fs
+}
+
+//
+//
+func parsetag(v string) (string, map[string]string) {
 	vs := map[string]string{}
 	nm := ""
 
 	for i, s := range strings.Split(v, ",") {
 		if i == 0 {
 			nm = s
+			continue
+		}
+		if s == "omitempty" {
 			continue
 		}
 		sp := strings.Split(s, "=")
@@ -56,11 +95,7 @@ func ParseTagValue(v string) (string, map[string]string) {
 }
 
 var (
-	FieldNameTypeMap = map[string]string{
-		"Time": "string",
-	}
-
-	FieldKindTypeMap = map[reflect.Kind]string{
+	types = map[reflect.Kind]string{
 		reflect.Bool:          "boolean",
 		reflect.Int:           "integer",
 		reflect.Int8:          "integer",
@@ -89,14 +124,3 @@ var (
 		reflect.UnsafePointer: "null",
 	}
 )
-
-func Fields(name string, src interface{}) []reflect.StructField {
-	fs := []reflect.StructField{}
-	st := reflect.TypeOf(src)
-	for i := 0; i < st.NumField(); i++ {
-		if n := st.Field(i).Tag.Get(name); n != "" {
-			fs = append(fs, st.Field(i))
-		}
-	}
-	return fs
-}
