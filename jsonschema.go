@@ -20,9 +20,9 @@ type ReqProps []string
 //
 type Links []interface{}
 
-// JsonSchema encapsulates the fields of a serializable JSON schema.
+// JSONSchema encapsulates the fields of a serializable JSON schema.
 //
-type JsonSchema struct {
+type JSONSchema struct {
 	Schema   string   `json:"$schema,omitempty"`
 	Name     string   `json:"name,omitempty"`
 	Type     string   `json:"type,omitempty"`
@@ -33,10 +33,10 @@ type JsonSchema struct {
 	Links    Links    `json:"links,omitempty"`
 }
 
-// New creates and returns a JsonSchema from the given value (struct).
+// New creates and returns a JSONSchema from the given value (struct).
 // The first two optional arguments are interpreted as Name and Description.
 //
-func New(v interface{}, opts ...string) JsonSchema {
+func New(v interface{}, opts ...string) JSONSchema {
 	nm, ds := "", ""
 	c := len(opts)
 	if c > 0 {
@@ -46,7 +46,7 @@ func New(v interface{}, opts ...string) JsonSchema {
 		ds = opts[1]
 	}
 	rp, p := props(v)
-	return JsonSchema{
+	return JSONSchema{
 		Schema:   "http://json-schema.org/schema#",
 		Name:     nm,
 		Type:     "object",

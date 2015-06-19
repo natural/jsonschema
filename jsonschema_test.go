@@ -76,7 +76,7 @@ func TestNestedProps(t *testing.T) {
 
 	if d, ok := s.Props["d"]; !ok {
 		t.Error("missing known schema field")
-	} else if ds, ok := d.(JsonSchema); !ok {
+	} else if ds, ok := d.(JSONSchema); !ok {
 		t.Error("failed to cast nested schema from property")
 	} else if mpp, ok := ds.Props["phone"].(map[string]string); !ok {
 		t.Error("failed to cast schema field map")
