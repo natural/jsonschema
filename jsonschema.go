@@ -32,13 +32,13 @@ type JsonSchema struct {
 
 //
 //
-func New(name, desc string, v interface{}) JsonSchema {
+func New(v interface{}) JsonSchema {
 	rp, p := props(v)
 	return JsonSchema{
 		Schema:   "http://json-schema.org/schema#",
-		Name:     name,
+		Name:     "",
 		Type:     "object",
-		Desc:     desc,
+		Desc:     "",
 		ReqProps: rp,
 		Props:    p,
 	}
@@ -60,7 +60,8 @@ func props(v interface{}) (ReqProps, Props) {
 		}
 		if ft.Kind() == reflect.Struct && ps["type"] == "" {
 			vv := reflect.Indirect(reflect.New(ft)).Interface()
-			nv := New(nm, "", vv)
+			nv := New(vv)
+			nv.Name = nm
 			nv.Schema = ""
 			pm[nm] = nv
 		} else {

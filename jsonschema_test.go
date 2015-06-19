@@ -25,12 +25,12 @@ type Ab struct {
 //
 //
 func TestSimpleProps(t *testing.T) {
-	if s := New("", "", A{}); len(s.Props) != 2 {
+	if s := New(A{}); len(s.Props) != 2 {
 		t.Error("wrong number of fields in schema")
 	} else if len(s.ReqProps) != 0 {
 		t.Error("wrong number of required fields in schema")
 	}
-	if v := New("", "", Ab{}); len(v.Props) != 0 {
+	if v := New(Ab{}); len(v.Props) != 0 {
 		t.Error("wrong number of fields in schema")
 	}
 }
@@ -44,7 +44,7 @@ type B struct {
 //
 //
 func TestKeywordProps(t *testing.T) {
-	if v := New("", "", B{}); len(v.Props) != 1 {
+	if v := New(B{}); len(v.Props) != 1 {
 		t.Error("wrong number of fields")
 	} else if p, ok := v.Props["b"]; !ok {
 		t.Error("missing known schema field")
@@ -72,7 +72,7 @@ type D struct {
 //
 func TestNestedProps(t *testing.T) {
 	c := C{C: "anything", D: D{phone: "again"}}
-	s := New("type-name-c", "type-desc-c", c)
+	s := New(c)
 
 	if d, ok := s.Props["d"]; !ok {
 		t.Error("missing known schema field")
@@ -97,9 +97,9 @@ type E struct {
 func TestCreateFromStructPointer(t *testing.T) {
 	e := E{"eggs", "ham"}
 
-	if s := New("", "", e); len(s.Props) != 2 {
+	if s := New(e); len(s.Props) != 2 {
 		t.Error("wrong number of fields in schema")
-	} else if s := New("", "", &e); len(s.Props) != 2 {
+	} else if s := New(&e); len(s.Props) != 2 {
 		t.Error("wrong number of fields in schema")
 	}
 }
@@ -115,7 +115,7 @@ type F struct {
 //
 func TestNestedPointer(t *testing.T) {
 	f := &F{Inner: &F{Inner: nil, Outer: nil}, Outer: nil}
-	if len(New("", "", f).Props) != 2 {
+	if len(New(f).Props) != 2 {
 		t.Error("wrong number of fields in schema")
 	}
 }
@@ -131,20 +131,20 @@ type G struct {
 //
 //
 func TestMisc(t *testing.T) {
-	if s := New("", "", G{}); len(s.ReqProps) != 2 {
+	if s := New(G{}); len(s.ReqProps) != 2 {
 		t.Error("wrong number of required fields in schema")
 	}
-	if s := New("", "", nil); len(s.ReqProps) != 0 || len(s.Props) != 0 {
+	if s := New(nil); len(s.ReqProps) != 0 || len(s.Props) != 0 {
 		t.Error("wrong number of fields on schema")
 	}
 	i := 0
-	if s := New("", "", i); len(s.Props) != 0 {
+	if s := New(i); len(s.Props) != 0 {
 		t.Error("wrong number of fields on schema")
 	}
-	if s := New("", "", &i); len(s.Props) != 0 {
+	if s := New(&i); len(s.Props) != 0 {
 		t.Error("wrong number of fields on schema")
 	}
-	if s := New("", "", ""); len(s.Props) != 0 {
+	if s := New(""); len(s.Props) != 0 {
 		t.Error("wrong number of fields on schema")
 	}
 }
@@ -152,7 +152,7 @@ func TestMisc(t *testing.T) {
 //
 //
 func TestEncoding(t *testing.T) {
-	s := New("a", "desc type a", A{})
+	s := New(A{})
 	if bs, err := json.MarshalIndent(s, "", "  "); err != nil {
 		t.Error(err)
 	} else if strings.Count(string(bs), "required") != 0 {
@@ -162,7 +162,7 @@ func TestEncoding(t *testing.T) {
 		t.Logf("encoded a: %v\n", string(bs))
 	}
 
-	s = New("", "", G{})
+	s = New(G{})
 	s.Links = Links{map[string]string{"href": "ok", "rel": "self"}}
 	if bs, err := json.MarshalIndent(s, "", "  "); err != nil {
 		t.Error(err)
