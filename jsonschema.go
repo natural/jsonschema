@@ -15,6 +15,10 @@ type ReqProps []string
 
 //
 //
+type Links []interface{}
+
+//
+//
 type JsonSchema struct {
 	Schema   string   `json:"$schema,omitempty"`
 	Name     string   `json:"name,omitempty"`
@@ -23,6 +27,7 @@ type JsonSchema struct {
 	AddProps bool     `json:"additionalProperties,omitempty"`
 	ReqProps ReqProps `json:"required,omitempty"`
 	Props    Props    `json:"properties,omitempty"`
+	Links    Links    `json:"links,omitempty"`
 }
 
 //
@@ -42,16 +47,18 @@ func New(name, desc string, v interface{}) JsonSchema {
 //
 //
 func props(v interface{}) (ReqProps, Props) {
-	pm := map[string]interface{}{}
-	pr := []string{}
+	pr, pm := []string{}, map[string]interface{}{}
 
-	for _, field := range fields("json", v) {
-		js, ft := field.Tag.Get("json"), field.Type
+	for _, f := range fields("json", v) {
+		js, ft := f.Tag.Get("json"), f.Type
 		if js == "" || js == "-" {
 			continue
 		}
 		nm, ps, rs := parsetag(js)
-		if ft.Kind() == reflect.Struct {
+		for _, v := range rs {
+			pr = append(pr, v)
+		}
+		if ft.Kind() == reflect.Struct && ps["type"] == "" {
 			vv := reflect.Indirect(reflect.New(ft)).Interface()
 			nv := New(nm, "", vv)
 			nv.Schema = ""
@@ -59,13 +66,11 @@ func props(v interface{}) (ReqProps, Props) {
 		} else {
 			pm[nm] = ps
 		}
-		for _, v := range rs {
-			pr = append(pr, v)
-		}
 		if v, n := types[ft.Kind()], ps["type"]; v != "" && n == "" {
 			ps["type"] = v
 		}
 	}
+	// who says go doesn't do automatic type conversion?
 	return pr, pm
 }
 
@@ -74,6 +79,16 @@ func props(v interface{}) (ReqProps, Props) {
 func fields(name string, src interface{}) []reflect.StructField {
 	fs := []reflect.StructField{}
 	st := reflect.TypeOf(src)
+	if st == nil {
+		return fs
+	} else if k := st.Kind(); k == reflect.Ptr {
+		st = st.Elem()
+	}
+	// retest
+	if st.Kind() != reflect.Struct {
+		return fs
+	}
+	//fmt.Printf("KIND: %v %T\n", st, st)
 	for i := 0; i < st.NumField(); i++ {
 		if n := st.Field(i).Tag.Get(name); n != "" {
 			fs = append(fs, st.Field(i))
@@ -122,8 +137,8 @@ var (
 		reflect.Uintptr:       "null",
 		reflect.Float32:       "number",
 		reflect.Float64:       "number",
-		reflect.Complex64:     "number",
-		reflect.Complex128:    "number",
+		reflect.Complex64:     "object",
+		reflect.Complex128:    "object",
 		reflect.Array:         "array",
 		reflect.Chan:          "object",
 		reflect.Func:          "object",

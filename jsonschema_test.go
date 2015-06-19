@@ -1,6 +1,10 @@
 package jsonschema
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 //
 //
@@ -12,14 +16,6 @@ type A struct {
 
 //
 //
-func TestSimpleProps(t *testing.T) {
-	v := New("", "", A{})
-	if len(v.Props) != 2 {
-		t.Error("wrong number of fields in schema")
-	}
-}
-
-//
 type Ab struct {
 	A string `json:""`
 	B string ``
@@ -28,9 +24,13 @@ type Ab struct {
 
 //
 //
-func TestEmptyProps(t *testing.T) {
-	v := New("", "", Ab{})
-	if len(v.Props) != 0 {
+func TestSimpleProps(t *testing.T) {
+	if s := New("", "", A{}); len(s.Props) != 2 {
+		t.Error("wrong number of fields in schema")
+	} else if len(s.ReqProps) != 0 {
+		t.Error("wrong number of required fields in schema")
+	}
+	if v := New("", "", Ab{}); len(v.Props) != 0 {
 		t.Error("wrong number of fields in schema")
 	}
 }
@@ -44,19 +44,13 @@ type B struct {
 //
 //
 func TestKeywordProps(t *testing.T) {
-	v := New("", "", B{})
-	if len(v.Props) != 1 {
+	if v := New("", "", B{}); len(v.Props) != 1 {
 		t.Error("wrong number of fields")
-	}
-	p, ok := v.Props["b"]
-	if !ok {
+	} else if p, ok := v.Props["b"]; !ok {
 		t.Error("missing known schema field")
-	}
-	mpp, ok := p.(map[string]string)
-	if !ok {
+	} else if mpp, ok := p.(map[string]string); !ok {
 		t.Error("failed to cast schema field map")
-	}
-	if mpp["pattern"] != "email" {
+	} else if mpp["pattern"] != "email" {
 		t.Error("wrong value for pattern key")
 	}
 }
@@ -79,19 +73,102 @@ type D struct {
 func TestNestedProps(t *testing.T) {
 	c := C{C: "anything", D: D{phone: "again"}}
 	s := New("type-name-c", "type-desc-c", c)
-	d, ok := s.Props["d"]
-	if !ok {
+
+	if d, ok := s.Props["d"]; !ok {
 		t.Error("missing known schema field")
-	}
-	ds, ok := d.(JsonSchema)
-	if !ok {
+	} else if ds, ok := d.(JsonSchema); !ok {
 		t.Error("failed to cast nested schema from property")
-	}
-	mpp, ok := ds.Props["phone"].(map[string]string)
-	if !ok {
+	} else if mpp, ok := ds.Props["phone"].(map[string]string); !ok {
 		t.Error("failed to cast schema field map")
-	}
-	if mpp["pattern"] != "telephone" {
+	} else if mpp["pattern"] != "telephone" {
 		t.Error("wrong value for pattern key")
+	}
+}
+
+//
+//
+type E struct {
+	E  string `json:"one"`
+	Ea string `json:"two"`
+}
+
+//
+//
+func TestCreateFromStructPointer(t *testing.T) {
+	e := E{"eggs", "ham"}
+
+	if s := New("", "", e); len(s.Props) != 2 {
+		t.Error("wrong number of fields in schema")
+	} else if s := New("", "", &e); len(s.Props) != 2 {
+		t.Error("wrong number of fields in schema")
+	}
+}
+
+//
+//
+type F struct {
+	Inner *F `json:"floop,type=string,format=date-time"`
+	Outer *F `json:"gloop,type=string,format=url"`
+}
+
+//
+//
+func TestNestedPointer(t *testing.T) {
+	f := &F{Inner: &F{Inner: nil, Outer: nil}, Outer: nil}
+	if len(New("", "", f).Props) != 2 {
+		t.Error("wrong number of fields in schema")
+	}
+}
+
+//
+//
+type G struct {
+	G string `json:"g,required"`
+	H string `json:"h,required"`
+	I string `json:"i"`
+}
+
+//
+//
+func TestMisc(t *testing.T) {
+	if s := New("", "", G{}); len(s.ReqProps) != 2 {
+		t.Error("wrong number of required fields in schema")
+	}
+	if s := New("", "", nil); len(s.ReqProps) != 0 || len(s.Props) != 0 {
+		t.Error("wrong number of fields on schema")
+	}
+	i := 0
+	if s := New("", "", i); len(s.Props) != 0 {
+		t.Error("wrong number of fields on schema")
+	}
+	if s := New("", "", &i); len(s.Props) != 0 {
+		t.Error("wrong number of fields on schema")
+	}
+	if s := New("", "", ""); len(s.Props) != 0 {
+		t.Error("wrong number of fields on schema")
+	}
+}
+
+//
+//
+func TestEncoding(t *testing.T) {
+	s := New("a", "desc type a", A{})
+	if bs, err := json.MarshalIndent(s, "", "  "); err != nil {
+		t.Error(err)
+	} else if strings.Count(string(bs), "required") != 0 {
+		// json schema spec says 'required' key must not be zero length
+		t.Error("non-empty required key in output")
+	} else {
+		t.Logf("encoded a: %v\n", string(bs))
+	}
+
+	s = New("", "", G{})
+	s.Links = Links{map[string]string{"href": "ok", "rel": "self"}}
+	if bs, err := json.MarshalIndent(s, "", "  "); err != nil {
+		t.Error(err)
+	} else if strings.Count(string(bs), "required") != 1 {
+		t.Errorf("wrong number of required keys in output")
+	} else {
+		t.Logf("encoded b: %v\n", string(bs))
 	}
 }
