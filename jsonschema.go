@@ -7,15 +7,22 @@ import (
 
 //
 //
-type JsonSchema struct {
-	Schema   string    `json:"$schema"`
-	Name     string    `json:"name,omitempty"`
-	Type     string    `json:"type,omitempty"`
-	Desc     string    `json:"description,omitempty"`
-	AddProp  bool      `json:"additionalProperties,omitempty"`
-	ReqProps *[]string `json:"required,omitempty"`
+type Props map[string]interface{}
 
-	Props *map[string]interface{} `json:"properties,omitempty"`
+//
+//
+type ReqProps []string
+
+//
+//
+type JsonSchema struct {
+	Schema   string   `json:"$schema,omitempty"`
+	Name     string   `json:"name,omitempty"`
+	Type     string   `json:"type,omitempty"`
+	Desc     string   `json:"description,omitempty"`
+	AddProps bool     `json:"additionalProperties,omitempty"`
+	ReqProps ReqProps `json:"required,omitempty"`
+	Props    Props    `json:"properties,omitempty"`
 }
 
 //
@@ -34,29 +41,32 @@ func New(name, desc string, v interface{}) JsonSchema {
 
 //
 //
-func props(v interface{}) (*[]string, *map[string]interface{}) {
+func props(v interface{}) (ReqProps, Props) {
 	pm := map[string]interface{}{}
-	pr := &[]string{}
+	pr := []string{}
 
 	for _, field := range fields("json", v) {
 		js, ft := field.Tag.Get("json"), field.Type
 		if js == "" || js == "-" {
 			continue
 		}
-		nm, ps := parsetag(js)
-		pm[nm] = ps
+		nm, ps, rs := parsetag(js)
+		if ft.Kind() == reflect.Struct {
+			vv := reflect.Indirect(reflect.New(ft)).Interface()
+			nv := New(nm, "", vv)
+			nv.Schema = ""
+			pm[nm] = nv
+		} else {
+			pm[nm] = ps
+		}
+		for _, v := range rs {
+			pr = append(pr, v)
+		}
 		if v, n := types[ft.Kind()], ps["type"]; v != "" && n == "" {
 			ps["type"] = v
 		}
 	}
-	if len(*pr) == 0 {
-		pr = nil
-	}
-	ppm := &pm
-	if len(pm) == 0 {
-		ppm = nil
-	}
-	return pr, ppm
+	return pr, pm
 }
 
 //
@@ -74,8 +84,9 @@ func fields(name string, src interface{}) []reflect.StructField {
 
 //
 //
-func parsetag(v string) (string, map[string]string) {
+func parsetag(v string) (string, map[string]string, []string) {
 	vs := map[string]string{}
+	rs := []string{}
 	nm := ""
 
 	for i, s := range strings.Split(v, ",") {
@@ -83,17 +94,18 @@ func parsetag(v string) (string, map[string]string) {
 			nm = s
 			continue
 		}
-		if s == "omitempty" {
-			continue
-		}
 		sp := strings.Split(s, "=")
-		if len(sp) == 2 {
+		if c := len(sp); c == 1 {
+			rs = append(rs, nm)
+		} else if c == 2 {
 			vs[sp[0]] = sp[1]
 		}
 	}
-	return nm, vs
+	return nm, vs, rs
 }
 
+//
+//
 var (
 	types = map[reflect.Kind]string{
 		reflect.Bool:          "boolean",
