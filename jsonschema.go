@@ -1,3 +1,6 @@
+// Package jsonschema provides a simple approach for deriving JSON Schemas
+// from user-defined structs.
+//
 package jsonschema
 
 import (
@@ -5,19 +8,19 @@ import (
 	"strings"
 )
 
-//
+// Props maps property keys to arbitrary values.
 //
 type Props map[string]interface{}
 
-//
+// ReqProps indicates required property keys.
 //
 type ReqProps []string
 
-//
+// Links is a slice of anything (until a better approach is found).
 //
 type Links []interface{}
 
-//
+// JsonSchema encapsulates the fields of a serializable JSON schema.
 //
 type JsonSchema struct {
 	Schema   string   `json:"$schema,omitempty"`
@@ -30,21 +33,31 @@ type JsonSchema struct {
 	Links    Links    `json:"links,omitempty"`
 }
 
+// New creates and returns a JsonSchema from the given value (struct).
+// The first two optional arguments are interpreted as Name and Description.
 //
-//
-func New(v interface{}) JsonSchema {
+func New(v interface{}, opts ...string) JsonSchema {
+	nm, ds := "", ""
+	c := len(opts)
+	if c > 0 {
+		nm = opts[0]
+	}
+	if c > 1 {
+		ds = opts[1]
+	}
 	rp, p := props(v)
 	return JsonSchema{
 		Schema:   "http://json-schema.org/schema#",
-		Name:     "",
+		Name:     nm,
 		Type:     "object",
-		Desc:     "",
+		Desc:     ds,
 		ReqProps: rp,
 		Props:    p,
 	}
 }
 
-//
+// This derives the required properties slice and the properties map from
+// the given value.
 //
 func props(v interface{}) (ReqProps, Props) {
 	pr, pm := []string{}, map[string]interface{}{}
@@ -75,7 +88,7 @@ func props(v interface{}) (ReqProps, Props) {
 	return pr, pm
 }
 
-//
+// This returns the struct fields that have the given struct tag.
 //
 func fields(name string, src interface{}) []reflect.StructField {
 	fs := []reflect.StructField{}
@@ -98,7 +111,7 @@ func fields(name string, src interface{}) []reflect.StructField {
 	return fs
 }
 
-//
+// "Parse" is used loosely here.g
 //
 func parsetag(v string) (string, map[string]string, []string) {
 	vs := map[string]string{}

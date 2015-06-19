@@ -147,6 +147,12 @@ func TestMisc(t *testing.T) {
 	if s := New(""); len(s.Props) != 0 {
 		t.Error("wrong number of fields on schema")
 	}
+	nm, ds := "misc", "a miss"
+	if s := New(A{}, nm, ds); s.Name != nm {
+		t.Error("wrong name")
+	} else if s.Desc != ds {
+		t.Error("wrong description")
+	}
 }
 
 //
