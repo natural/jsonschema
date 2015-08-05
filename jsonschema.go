@@ -8,29 +8,23 @@ import (
 	"strings"
 )
 
-// Props maps property keys to arbitrary values.
+// Linkser is something with a Links method.
 //
-type Props map[string]interface{}
-
-// ReqProps indicates required property keys.
-//
-type ReqProps []string
-
-// Links is a slice of anything (until a better approach is found).
-//
-type Links []interface{}
+type Linkser interface {
+	Links() []map[string]string
+}
 
 // JSONSchema encapsulates the fields of a serializable JSON schema.
 //
 type JSONSchema struct {
-	Schema   string   `json:"$schema,omitempty"`
-	Name     string   `json:"name,omitempty"`
-	Type     string   `json:"type,omitempty"`
-	Desc     string   `json:"description,omitempty"`
-	AddProps bool     `json:"additionalProperties,omitempty"`
-	ReqProps ReqProps `json:"required,omitempty"`
-	Props    Props    `json:"properties,omitempty"`
-	Links    Links    `json:"links,omitempty"`
+	Schema   string                 `json:"$schema,omitempty"`
+	Name     string                 `json:"name,omitempty"`
+	Type     string                 `json:"type,omitempty"`
+	Desc     string                 `json:"description,omitempty"`
+	AddProps bool                   `json:"additionalProperties,omitempty"`
+	ReqProps []string               `json:"required,omitempty"`
+	Props    map[string]interface{} `json:"properties,omitempty"`
+	Links    []map[string]string    `json:"links,omitempty"`
 }
 
 // New creates and returns a JSONSchema from the given value (struct).
@@ -46,6 +40,8 @@ func New(v interface{}, opts ...string) JSONSchema {
 		ds = opts[1]
 	}
 	rp, p := props(v)
+	ks := links(v)
+
 	return JSONSchema{
 		Schema:   "http://json-schema.org/schema#",
 		Name:     nm,
@@ -53,13 +49,23 @@ func New(v interface{}, opts ...string) JSONSchema {
 		Desc:     ds,
 		ReqProps: rp,
 		Props:    p,
+		Links:    ks,
 	}
+}
+
+// This returns the results of a `Links()` method if possible.
+//
+func links(v interface{}) []map[string]string {
+	if vl, ok := v.(Linkser); ok {
+		return vl.Links()
+	}
+	return []map[string]string{}
 }
 
 // This derives the required properties slice and the properties map from
 // the given value.
 //
-func props(v interface{}) (ReqProps, Props) {
+func props(v interface{}) ([]string, map[string]interface{}) {
 	pr, pm := []string{}, map[string]interface{}{}
 
 	for _, f := range fields("json", v) {
@@ -111,7 +117,7 @@ func fields(name string, src interface{}) []reflect.StructField {
 	return fs
 }
 
-// "Parse" is used loosely here.g
+// "Parse" is used loosely here.
 //
 func parsetag(v string) (string, map[string]string, []string) {
 	vs := map[string]string{}

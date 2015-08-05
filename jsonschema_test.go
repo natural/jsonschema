@@ -128,6 +128,13 @@ type G struct {
 	I string `json:"i"`
 }
 
+func (g G) Links() []map[string]string {
+	return []map[string]string{
+		map[string]string{"href": "#1", "rel": "self"},
+		map[string]string{"nope": "#1", "rel": "self"},
+	}
+}
+
 //
 //
 func TestMisc(t *testing.T) {
@@ -165,16 +172,29 @@ func TestEncoding(t *testing.T) {
 		// json schema spec says 'required' key must not be zero length
 		t.Error("non-empty required key in output")
 	} else {
-		t.Logf("encoded a: %v\n", string(bs))
+		//		t.Logf("encoded a: %v\n", string(bs))
 	}
 
 	s = New(G{})
-	s.Links = Links{map[string]string{"href": "ok", "rel": "self"}}
+	s.Links = []map[string]string{
+		map[string]string{"href": "#abc", "rel": "self"},
+		map[string]string{"href": "#def", "rel": "self"},
+	}
 	if bs, err := json.MarshalIndent(s, "", "  "); err != nil {
 		t.Error(err)
-	} else if strings.Count(string(bs), "required") != 1 {
-		t.Errorf("wrong number of required keys in output")
+	} else if strings.Count(string(bs), "href") != 2 {
+		t.Errorf("wrong number of required hrefs in output")
+	} else {
+		//		t.Logf("encoded b: %v\n", string(bs))
+	}
+
+	s = New(G{})
+	if bs, err := json.MarshalIndent(s, "", "  "); err != nil {
+		t.Error(err)
+	} else if strings.Count(string(bs), "href") != 1 {
+		t.Errorf("wrong number of required hrefs in output %v", string(bs))
 	} else {
 		t.Logf("encoded b: %v\n", string(bs))
 	}
+
 }
